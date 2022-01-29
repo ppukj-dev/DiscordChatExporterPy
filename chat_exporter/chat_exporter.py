@@ -1,4 +1,5 @@
 import io
+from lib2to3.pgen2.token import OP
 import re
 from pytz import timezone
 from datetime import timedelta
@@ -34,6 +35,8 @@ async def export(
     channel: discord.TextChannel,
     guild: discord.Guild = None,
     limit: int = None,
+    begin_time = None,
+    end_time = None,
     set_timezone="Europe/London",
 ):
     if guild:
@@ -41,7 +44,7 @@ async def export(
 
     # noinspection PyBroadException
     try:
-        return (await Transcript.export(channel, limit, set_timezone)).html
+        return (await Transcript.export(channel, limit, begin_time, end_time, set_timezone)).html
     except Exception:
         traceback.print_exc()
         print(f"Please send a screenshot of the above error to https://www.github.com/mahtoid/DiscordChatExporterPy")
@@ -118,13 +121,29 @@ class Transcript:
         cls,
         channel: discord.TextChannel,
         limit: Optional[int],
+        begin_time,
+        end_time,
         timezone_string: str = "Europe/London"
     ) -> "Transcript":
         if limit:
             messages = await channel.history(limit=limit).flatten()
             messages.reverse()
         else:
-            messages = await channel.history(limit=limit, oldest_first=True).flatten()
+            # Get messages
+            toggle = True
+            messages = []
+            history = []
+
+            while toggle or len(history) >= 100:
+                history = await channel.history(
+                    limit=100,
+                    before=end_time,
+                    after=begin_time,
+                    oldest_first=True
+                ).flatten()
+                messages.extend(history)
+                begin_time = history[-1].created_at
+                toggle = False
 
         transcript = await Transcript(
             channel=channel,
