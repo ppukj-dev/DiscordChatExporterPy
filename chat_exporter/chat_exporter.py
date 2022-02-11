@@ -130,20 +130,21 @@ class Transcript:
             messages.reverse()
         else:
             # Get messages
-            toggle = True
             messages = []
-            history = []
 
-            while toggle or len(history) >= 100:
+            while True:
                 history = await channel.history(
                     limit=100,
                     before=end_time,
                     after=begin_time,
                     oldest_first=True
                 ).flatten()
+                
+                if not history:
+                    break
+                
                 messages.extend(history)
                 begin_time = history[-1].created_at
-                toggle = False
 
         transcript = await Transcript(
             channel=channel,
